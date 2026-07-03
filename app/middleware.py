@@ -1,7 +1,5 @@
 # app/middleware.py
 import os
-import jwt
-from jwt import PyJWTError
 from fastapi import Request
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
@@ -9,6 +7,9 @@ from app.config import logger
 
 
 async def security_middleware(request: Request, call_next):
+    import jwt
+    from jwt import PyJWTError
+
     async def next_middleware_call():
         return await call_next(request)
 
