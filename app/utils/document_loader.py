@@ -4,24 +4,13 @@ import os
 import codecs
 import tempfile
 
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, TYPE_CHECKING
 import chardet
 
-from langchain_core.documents import Document
-
 from app.config import known_source_ext, PDF_EXTRACT_IMAGES, CHUNK_OVERLAP, logger
-from langchain_community.document_loaders import (
-    TextLoader,
-    PyPDFLoader,
-    CSVLoader,
-    Docx2txtLoader,
-    UnstructuredEPubLoader,
-    UnstructuredMarkdownLoader,
-    UnstructuredXMLLoader,
-    UnstructuredRSTLoader,
-    UnstructuredExcelLoader,
-    UnstructuredPowerPointLoader,
-)
+
+if TYPE_CHECKING:
+    from langchain_core.documents import Document
 
 
 # Extensions that identify binary file formats handled by dedicated loaders.
@@ -93,6 +82,19 @@ def get_loader(
     """
     file_ext = filename.split(".")[-1].lower()
     known_type = True
+
+    from langchain_community.document_loaders import (
+        TextLoader,
+        PyPDFLoader,
+        CSVLoader,
+        Docx2txtLoader,
+        UnstructuredEPubLoader,
+        UnstructuredMarkdownLoader,
+        UnstructuredXMLLoader,
+        UnstructuredRSTLoader,
+        UnstructuredExcelLoader,
+        UnstructuredPowerPointLoader,
+    )
 
     # File Content Type reference:
     # ref.: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
@@ -216,7 +218,7 @@ def remove_non_utf8(text: str) -> str:
         return text
 
 
-def process_documents(documents: List[Document]) -> str:
+def process_documents(documents: List["Document"]) -> str:
     processed_text = ""
     last_page: Optional[int] = None
     doc_basename = ""
