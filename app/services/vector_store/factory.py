@@ -213,6 +213,12 @@ def close_vector_store_connections(vector_store: Any) -> None:
     """
     global _mongo_client
 
+    if hasattr(vector_store, "get_initialized_store"):
+        try:
+            vector_store = vector_store.get_initialized_store()
+        except Exception:
+            vector_store = getattr(vector_store, "_store", None)
+
     # Close MongoDB client if one was created
     if _mongo_client is not None:
         try:

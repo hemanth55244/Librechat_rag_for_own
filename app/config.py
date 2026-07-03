@@ -365,44 +365,75 @@ elif EMBEDDINGS_PROVIDER == EmbeddingsProvider.BEDROCK:
 else:
     raise ValueError(f"Unsupported embeddings provider: {EMBEDDINGS_PROVIDER}")
 
-embeddings = init_embeddings(
-    EMBEDDINGS_PROVIDER, EMBEDDINGS_MODEL, dimensions=EMBEDDINGS_DIMENSIONS
-)
+embeddings = None
 
-logger.info(f"Initialized embeddings of type: {type(embeddings)}")
 
-# Vector store
-if VECTOR_DB_TYPE == VectorDBType.PGVECTOR:
-    vector_store = get_vector_store(
-        connection_string=CONNECTION_STRING,
-        embeddings=embeddings,
-        collection_name=COLLECTION_NAME,
-        mode="async",
-        create_extension=PGVECTOR_CREATE_EXTENSION,
-        pool_pre_ping=PG_POOL_PRE_PING,
-        pool_recycle=PG_POOL_RECYCLE,
-        schema=POSTGRES_SCHEMA,
-    )
-elif VECTOR_DB_TYPE == VectorDBType.ATLAS_MONGO:
-    # Backward compatability check
-    if MONGO_VECTOR_COLLECTION:
-        logger.info(
-            f"DEPRECATED: Please remove env var MONGO_VECTOR_COLLECTION and instead use COLLECTION_NAME and ATLAS_SEARCH_INDEX. You can set both as same, but not neccessary. See README for more information."
+def get_embeddings():
+    global embeddings
+    if embeddings is None:
+        embeddings = init_embeddings(
+            EMBEDDINGS_PROVIDER, EMBEDDINGS_MODEL, dimensions=EMBEDDINGS_DIMENSIONS
         )
-        ATLAS_SEARCH_INDEX = MONGO_VECTOR_COLLECTION
-        COLLECTION_NAME = MONGO_VECTOR_COLLECTION
-    vector_store = get_vector_store(
-        connection_string=ATLAS_MONGO_DB_URI,
-        embeddings=embeddings,
-        collection_name=COLLECTION_NAME,
-        mode="atlas-mongo",
-        search_index=ATLAS_SEARCH_INDEX,
-        db_name=ATLAS_MONGO_DB_NAME,
-    )
-else:
-    raise ValueError(f"Unsupported vector store type: {VECTOR_DB_TYPE}")
+        logger.info(f"Initialized embeddings of type: {type(embeddings)}")
+    return embeddings
 
-retriever = vector_store.as_retriever()
+
+class LazyVectorStore:
+    def __init__(self):
+        self._store = None
+
+    def get_initialized_store(self):
+        return get_vector_store_instance()
+
+    def __getattr__(self, name):
+        return getattr(self.get_initialized_store(), name)
+
+
+vector_store = LazyVectorStore()
+
+
+def get_vector_store_instance():
+    global vector_store, COLLECTION_NAME, ATLAS_SEARCH_INDEX
+    if isinstance(vector_store, LazyVectorStore) and vector_store._store is None:
+        current_embeddings = get_embeddings()
+        if VECTOR_DB_TYPE == VectorDBType.PGVECTOR:
+            vector_store._store = get_vector_store(
+                connection_string=CONNECTION_STRING,
+                embeddings=current_embeddings,
+                collection_name=COLLECTION_NAME,
+                mode="async",
+                create_extension=PGVECTOR_CREATE_EXTENSION,
+                pool_pre_ping=PG_POOL_PRE_PING,
+                pool_recycle=PG_POOL_RECYCLE,
+                schema=POSTGRES_SCHEMA,
+            )
+        elif VECTOR_DB_TYPE == VectorDBType.ATLAS_MONGO:
+            # Backward compatability check
+            if MONGO_VECTOR_COLLECTION:
+                logger.info(
+                    f"DEPRECATED: Please remove env var MONGO_VECTOR_COLLECTION and instead use COLLECTION_NAME and ATLAS_SEARCH_INDEX. You can set both as same, but not neccessary. See README for more information."
+                )
+                ATLAS_SEARCH_INDEX = MONGO_VECTOR_COLLECTION
+                COLLECTION_NAME = MONGO_VECTOR_COLLECTION
+            vector_store._store = get_vector_store(
+                connection_string=ATLAS_MONGO_DB_URI,
+                embeddings=current_embeddings,
+                collection_name=COLLECTION_NAME,
+                mode="atlas-mongo",
+                search_index=ATLAS_SEARCH_INDEX,
+                db_name=ATLAS_MONGO_DB_NAME,
+            )
+        else:
+            raise ValueError(f"Unsupported vector store type: {VECTOR_DB_TYPE}")
+    return vector_store._store if isinstance(vector_store, LazyVectorStore) else vector_store
+
+
+class LazyRetriever:
+    def __getattr__(self, name):
+        return getattr(get_vector_store_instance().as_retriever(), name)
+
+
+retriever = LazyRetriever()
 
 known_source_ext = [
     "go",
