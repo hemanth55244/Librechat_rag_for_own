@@ -21,12 +21,11 @@ from fastapi import (
     Query,
     status,
 )
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from functools import lru_cache
 import asyncio
 
 if TYPE_CHECKING:
+    from langchain_core.documents import Document
     from app.services.vector_store.async_pg_vector import AsyncPgVector
     from app.services.vector_store.atlas_mongo_vector import AtlasMongoVector
     from langchain_community.vectorstores.pgvector import PGVector as PgVector
@@ -86,16 +85,20 @@ from app.models import (
     DocumentResponse,
     QueryMultipleBody,
 )
-from app.services.vector_store.async_pg_vector import AsyncPgVector
 from app.utils.document_loader import (
     get_loader,
     clean_text,
     process_documents,
     cleanup_temp_encoding_file,
 )
-from app.utils.health import is_health_ok
 
 router = APIRouter()
+
+
+def _is_async_pg_vector(store) -> bool:
+    from app.services.vector_store.async_pg_vector import AsyncPgVector
+
+    return isinstance(store, AsyncPgVector)
 
 
 def calculate_num_batches(total: int, batch_size: int) -> int:
@@ -237,7 +240,7 @@ async def cleanup_temp_file_async(file_path: str) -> None:
 @router.get("/ids")
 async def get_all_ids(request: Request):
     try:
-        if isinstance(vector_store, AsyncPgVector):
+        if _is_async_pg_vector(vector_store):
             ids = await vector_store.get_all_ids(executor=request.app.state.thread_pool)
         else:
             ids = vector_store.get_all_ids()
@@ -262,6 +265,8 @@ async def get_all_ids(request: Request):
 @router.get("/health")
 async def health_check(response: Response):
     try:
+        from app.utils.health import is_health_ok
+
         if await is_health_ok():
             return {"status": "UP"}
         else:
@@ -281,7 +286,7 @@ async def health_check(response: Response):
 @router.get("/documents", response_model=list[DocumentResponse])
 async def get_documents_by_ids(request: Request, ids: list[str] = Query(...)):
     try:
-        if isinstance(vector_store, AsyncPgVector):
+        if _is_async_pg_vector(vector_store):
             existing_ids = await vector_store.get_filtered_ids(
                 ids, executor=request.app.state.thread_pool
             )
@@ -323,7 +328,7 @@ async def get_documents_by_ids(request: Request, ids: list[str] = Query(...)):
 @router.delete("/documents")
 async def delete_documents(request: Request, document_ids: List[str] = Body(...)):
     try:
-        if isinstance(vector_store, AsyncPgVector):
+        if _is_async_pg_vector(vector_store):
             existing_ids = await vector_store.get_filtered_ids(
                 document_ids, executor=request.app.state.thread_pool
             )
@@ -381,7 +386,7 @@ async def query_embeddings_by_file_id(
     try:
         embedding = get_cached_query_embedding(body.query)
 
-        if isinstance(vector_store, AsyncPgVector):
+        if _is_async_pg_vector(vector_store):
             documents = await vector_store.asimilarity_search_with_score_by_vector(
                 embedding,
                 k=body.k,
@@ -703,6 +708,9 @@ def _prepare_documents_sync(
     Synchronous document preparation - runs in executor to avoid blocking event loop.
     Handles text splitting, cleaning, and metadata preparation.
     """
+    from langchain_core.documents import Document
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
     )
@@ -749,7 +757,7 @@ async def store_data_in_vector_db(
     try:
         if EMBEDDING_BATCH_SIZE <= 0:
             # synchronously embed the file and insert into vector store in one go
-            if isinstance(vector_store, AsyncPgVector):
+            if _is_async_pg_vector(vector_store):
                 ids = await vector_store.aadd_documents(
                     docs, ids=[file_id] * len(docs), executor=executor
                 )
@@ -760,7 +768,7 @@ async def store_data_in_vector_db(
             # to lessen memory impact and speed up slightly as the majority of the document
             # is inserted into db by the time it is fully embedded
 
-            if isinstance(vector_store, AsyncPgVector):
+            if _is_async_pg_vector(vector_store):
                 ids = await _process_documents_async_pipeline(
                     docs, file_id, vector_store, executor
                 )
@@ -950,7 +958,7 @@ async def embed_file(
 async def load_document_context(request: Request, id: str):
     ids = [id]
     try:
-        if isinstance(vector_store, AsyncPgVector):
+        if _is_async_pg_vector(vector_store):
             existing_ids = await vector_store.get_filtered_ids(
                 ids, executor=request.app.state.thread_pool
             )
@@ -1074,7 +1082,7 @@ async def query_embeddings_by_file_ids(request: Request, body: QueryMultipleBody
         embedding = get_cached_query_embedding(body.query)
 
         # Perform similarity search with the query embedding and filter by the file_ids in metadata
-        if isinstance(vector_store, AsyncPgVector):
+        if _is_async_pg_vector(vector_store):
             documents = await vector_store.asimilarity_search_with_score_by_vector(
                 embedding,
                 k=body.k,
