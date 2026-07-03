@@ -24,7 +24,6 @@ from app.config import (
 )
 from app.middleware import security_middleware
 from app.routes import document_routes, pgvector_routes
-from app.services.database import PSQLDatabase, ensure_vector_indexes
 from app.services.vector_store.factory import close_vector_store_connections
 
 
@@ -43,6 +42,8 @@ async def lifespan(app: FastAPI):
     )
 
     if VECTOR_DB_TYPE == VectorDBType.PGVECTOR:
+        from app.services.database import PSQLDatabase, ensure_vector_indexes
+
         await PSQLDatabase.get_pool()  # Initialize the pool
         await ensure_vector_indexes()
 
@@ -50,6 +51,8 @@ async def lifespan(app: FastAPI):
 
     # Cleanup logic
     if VECTOR_DB_TYPE == VectorDBType.PGVECTOR:
+        from app.services.database import PSQLDatabase
+
         try:
             logger.info("Closing asyncpg connection pool")
             await PSQLDatabase.close_pool()

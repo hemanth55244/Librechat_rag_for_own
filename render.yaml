@@ -2,6 +2,7 @@ services:
   - type: web
     name: librechat-rag-for-own
     runtime: docker
+    dockerfilePath: Dockerfile.lite
     plan: free
     healthCheckPath: /health
     envVars:
