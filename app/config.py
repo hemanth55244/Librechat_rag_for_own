@@ -74,6 +74,7 @@ COLLECTION_NAME = get_env_variable("COLLECTION_NAME", "hemanth_rag_collection")
 ATLAS_MONGO_DB_URI = get_env_variable(
     "ATLAS_MONGO_DB_URI", "mongodb://127.0.0.1:27017/hemanth_rag"
 )
+ATLAS_MONGO_DB_NAME = get_env_variable("ATLAS_MONGO_DB_NAME", None)
 ATLAS_SEARCH_INDEX = get_env_variable("ATLAS_SEARCH_INDEX", "vector_index")
 MONGO_VECTOR_COLLECTION = get_env_variable(
     "MONGO_VECTOR_COLLECTION", None
@@ -396,6 +397,7 @@ elif VECTOR_DB_TYPE == VectorDBType.ATLAS_MONGO:
         collection_name=COLLECTION_NAME,
         mode="atlas-mongo",
         search_index=ATLAS_SEARCH_INDEX,
+        db_name=ATLAS_MONGO_DB_NAME,
     )
 else:
     raise ValueError(f"Unsupported vector store type: {VECTOR_DB_TYPE}")

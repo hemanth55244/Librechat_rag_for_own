@@ -2,6 +2,7 @@ import logging
 from typing import Any, List, Optional
 
 from pymongo import MongoClient
+from pymongo.errors import ConfigurationError
 from langchain_core.embeddings import Embeddings
 
 from .async_pg_vector import AsyncPgVector
@@ -114,6 +115,7 @@ def get_vector_store(
     pool_pre_ping: bool = True,
     pool_recycle: int = -1,
     schema: Optional[str] = None,
+    db_name: Optional[str] = None,
 ):
     """Create a vector store instance for the given mode.
 
@@ -174,7 +176,18 @@ def get_vector_store(
         if _mongo_client is not None:
             _mongo_client.close()
         _mongo_client = MongoClient(connection_string)
-        mongo_db = _mongo_client.get_database()
+        if db_name:
+            mongo_db = _mongo_client.get_database(db_name)
+        else:
+            try:
+                mongo_db = _mongo_client.get_database()
+            except ConfigurationError as exc:
+                raise ValueError(
+                    "ATLAS_MONGO_DB_URI does not contain a default database. "
+                    "Either add the database name to the URI "
+                    "(mongodb+srv://user:pass@host/<database>) or "
+                    "set ATLAS_MONGO_DB_NAME."
+                ) from exc
         mong_collection = mongo_db[collection_name]
         return AtlasMongoVector(
             collection=mong_collection, embedding=embeddings, index_name=search_index

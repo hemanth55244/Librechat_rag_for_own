@@ -142,6 +142,55 @@ def test_get_vector_store_propagates_create_extension_false():
         assert kwargs.get("create_extension") is False
 
 
+def test_get_vector_store_atlas_mongo_accepts_explicit_db_name():
+    """Atlas Mongo vector store should use explicit DB name when supplied."""
+    factory._mongo_client = None
+
+    with patch("app.services.vector_store.factory.MongoClient") as MockMC:
+        mock_client = MagicMock()
+        MockMC.return_value = mock_client
+        mock_db = MagicMock()
+        mock_client.get_database.return_value = mock_db
+
+        mock_embeddings = MagicMock()
+        with patch("app.services.vector_store.factory.AtlasMongoVector") as MockAtlas:
+            factory.get_vector_store(
+                "conn",
+                mock_embeddings,
+                "coll",
+                mode="atlas-mongo",
+                search_index="idx",
+                db_name="test_db",
+            )
+
+            mock_client.get_database.assert_called_once_with("test_db")
+            MockAtlas.assert_called_once()
+
+    factory._mongo_client = None
+
+
+def test_get_vector_store_atlas_mongo_requires_db_when_uri_has_no_default():
+    """Atlas Mongo store should raise a helpful error when no default DB is available."""
+    factory._mongo_client = None
+
+    with patch("app.services.vector_store.factory.MongoClient") as MockMC:
+        mock_client = MagicMock()
+        MockMC.return_value = mock_client
+        mock_client.get_database.side_effect = factory.ConfigurationError("no default db")
+
+        mock_embeddings = MagicMock()
+        with pytest.raises(ValueError, match="ATLAS_MONGO_DB_URI does not contain a default database"):
+            factory.get_vector_store(
+                "conn",
+                mock_embeddings,
+                "coll",
+                mode="atlas-mongo",
+                search_index="idx",
+            )
+
+    factory._mongo_client = None
+
+
 def test_get_vector_store_defaults_enable_pool_pre_ping():
     """Default engine_args must enable pool_pre_ping — the back-compat-safe
     default that prevents dead-connection errors on remote Postgres."""

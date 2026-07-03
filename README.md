@@ -77,6 +77,7 @@ The following environment variables are required to run the application:
     - Note: When using with LibreChat, you can also set `HTTP_PROXY` and `HTTPS_PROXY` environment variables in the `docker-compose.override.yml` file (see [Proxy Configuration](#proxy-configuration) section below)
 - `VECTOR_DB_TYPE`: (Optional) select vector database type, default to `atlas-mongo`.
 - `ATLAS_MONGO_DB_URI`: MongoDB Atlas connection string used when `VECTOR_DB_TYPE=atlas-mongo`.
+- `ATLAS_MONGO_DB_NAME`: (Optional) the MongoDB database name used when the connection URI does not include one.
 - `ATLAS_SEARCH_INDEX`: (Optional) the name of the vector search index if using Atlas MongoDB, defaults to `vector_index`.
 - `RAG_HOST`: (Optional) The hostname or IP address where the API server will run. Defaults to "0.0.0.0"
 - `RAG_PORT`: (Optional) The port number where the API server will run. Defaults to port 8000.
@@ -171,11 +172,12 @@ This project uses [Atlas MongoDB](https://www.mongodb.com/products/platform/atla
 ```env
 VECTOR_DB_TYPE=atlas-mongo
 ATLAS_MONGO_DB_URI=<mongodb+srv://...>
+ATLAS_MONGO_DB_NAME=hemanth_rag
 COLLECTION_NAME=<vector collection>
 ATLAS_SEARCH_INDEX=<vector search index>
 ```
 
-The `ATLAS_MONGO_DB_URI` could be the same or different from what is used by LibreChat. Even if it is the same, the `$COLLECTION_NAME` collection needs to be a completely new one, separate from all collections used by LibreChat. In addition,  create a vector search index for collection above (remember to assign `$ATLAS_SEARCH_INDEX`) with the following json:
+The `ATLAS_MONGO_DB_URI` could be the same or different from what is used by LibreChat. If the URI does not include a default database path, set `ATLAS_MONGO_DB_NAME` to the target database name. Even if it is the same, the `$COLLECTION_NAME` collection needs to be a completely new one, separate from all collections used by LibreChat. In addition,  create a vector search index for collection above (remember to assign `$ATLAS_SEARCH_INDEX`) with the following json:
 
 ```json
 {
