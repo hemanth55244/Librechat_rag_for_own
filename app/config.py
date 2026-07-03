@@ -42,7 +42,7 @@ def get_env_variable(
 
 
 RAG_HOST = os.getenv("RAG_HOST", "0.0.0.0")
-RAG_PORT = int(os.getenv("RAG_PORT", 8000))
+RAG_PORT = int(os.getenv("RAG_PORT", os.getenv("PORT", 8000)))
 
 RAG_UPLOAD_DIR = get_env_variable("RAG_UPLOAD_DIR", "./uploads/")
 if not os.path.exists(RAG_UPLOAD_DIR):

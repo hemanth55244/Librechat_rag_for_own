@@ -1,5 +1,11 @@
 .venv
+.env
+.git
+.idea
 __pycache__
 uploads/
 myenv/
 venv/
+*.pyc
+dev.yml
+SHOPIFY.md

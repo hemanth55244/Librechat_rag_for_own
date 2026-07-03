@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import (
     APIRouter,
     Request,
+    Response,
     UploadFile,
     HTTPException,
     File,
@@ -259,20 +260,22 @@ async def get_all_ids(request: Request):
 
 
 @router.get("/health")
-async def health_check():
+async def health_check(response: Response):
     try:
         if await is_health_ok():
             return {"status": "UP"}
         else:
             logger.error("Health check failed")
-            return {"status": "DOWN"}, 503
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            return {"status": "DOWN"}
     except Exception as e:
         logger.error(
             "Error during health check | Error: %s | Traceback: %s",
             str(e),
             traceback.format_exc(),
         )
-        return {"status": "DOWN", "error": str(e)}, 503
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "DOWN", "error": str(e)}
 
 
 @router.get("/documents", response_model=list[DocumentResponse])

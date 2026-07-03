@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: librechat-rag-for-own
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: VECTOR_DB_TYPE
+        value: atlas-mongo
+      - key: COLLECTION_NAME
+        value: hemanth_rag_collection
+      - key: ATLAS_SEARCH_INDEX
+        value: vector_index
+      - key: EMBEDDING_BATCH_SIZE
+        value: "500"
+      - key: ATLAS_MONGO_DB_URI
+        sync: false
+      - key: RAG_OPENAI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
