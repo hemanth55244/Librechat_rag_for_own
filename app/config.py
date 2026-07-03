@@ -1,15 +1,12 @@
 # app/config.py
 import os
 import json
-import boto3
 import logging
 import urllib.parse
 from enum import Enum
 from datetime import datetime
 from dotenv import find_dotenv, load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from app.services.vector_store.factory import get_vector_store
 
 load_dotenv(find_dotenv())
 
@@ -298,6 +295,7 @@ def init_embeddings(provider, model, dimensions=None):
             location=get_env_variable("GOOGLE_CLOUD_LOCATION", "us-central1"),
         )
     elif provider == EmbeddingsProvider.BEDROCK:
+        import boto3
         from langchain_aws import BedrockEmbeddings
 
         session_kwargs = {
@@ -393,6 +391,8 @@ vector_store = LazyVectorStore()
 
 
 def get_vector_store_instance():
+    from app.services.vector_store.factory import get_vector_store
+
     global vector_store, COLLECTION_NAME, ATLAS_SEARCH_INDEX
     if isinstance(vector_store, LazyVectorStore) and vector_store._store is None:
         current_embeddings = get_embeddings()
