@@ -175,7 +175,13 @@ def get_vector_store(
     elif mode == "atlas-mongo":
         if _mongo_client is not None:
             _mongo_client.close()
-        _mongo_client = MongoClient(connection_string)
+        _mongo_client = MongoClient(
+            connection_string,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000,
+            retryWrites=True,
+        )
         if db_name:
             mongo_db = _mongo_client.get_database(db_name)
         else:
