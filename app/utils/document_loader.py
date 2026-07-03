@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # app/utils/document_loader.py
 
 import os
