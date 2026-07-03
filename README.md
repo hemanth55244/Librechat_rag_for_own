@@ -7,7 +7,7 @@ Personal RAG API workspace for Nallappagari Hemanth Sai, built on an MIT-license
 This project is derived from `danny-avila/rag_api`. The original MIT license and copyright notice are retained in `LICENSE`.
 
 ## Overview
-This project integrates Langchain with FastAPI in an Asynchronous, Scalable manner, providing a framework for document indexing and retrieval, using PostgreSQL/pgvector.
+This project integrates Langchain with FastAPI in an Asynchronous, Scalable manner, providing a framework for document indexing and retrieval using MongoDB Atlas Vector Search.
 
 Files are organized into embeddings by `file_id`. The primary use case is for integration with [LibreChat](https://librechat.ai), but this simple API can be used for any ID-based use case.
 
@@ -25,15 +25,14 @@ The API will evolve over time to employ different querying/re-ranking methods, e
 ### Getting Started
 
 - **Configure `.env` file based on [section below](#environment-variables)**
-- **Setup pgvector database:**
-  - Run an existing PSQL/PGVector setup, or,
-  - Docker: `docker compose up` (also starts RAG API)
-    - or, use docker just for DB: `docker compose -f ./db-compose.yaml up`
+- **Setup MongoDB Atlas Vector Search:**
+  - Add your Atlas connection string to `.env` as `ATLAS_MONGO_DB_URI`.
+  - Create the vector search index described in [Use Atlas MongoDB as Vector Database](#use-atlas-mongodb-as-vector-database).
 - **Run API**:
-  - Docker: `docker compose up` (also starts PSQL/pgvector)
+  - Docker: `docker compose up`
     - or, use docker just for RAG API: `docker compose -f ./api-compose.yaml up`
   - Local:
-    - Make sure to setup `DB_HOST` to the correct database hostname
+    - Make sure `.env` contains `VECTOR_DB_TYPE=atlas-mongo` and `ATLAS_MONGO_DB_URI`
     - Run the following commands (preferably in a [virtual environment](https://realpython.com/python-virtual-environments-a-primer/))
 ```bash
 pip install -r requirements.txt
@@ -76,17 +75,9 @@ The following environment variables are required to run the application:
 - `RAG_OPENAI_BASEURL`: (Optional) The base URL for your OpenAI API Embeddings
 - `RAG_OPENAI_PROXY`: (Optional) Proxy for OpenAI API Embeddings
     - Note: When using with LibreChat, you can also set `HTTP_PROXY` and `HTTPS_PROXY` environment variables in the `docker-compose.override.yml` file (see [Proxy Configuration](#proxy-configuration) section below)
-- `VECTOR_DB_TYPE`: (Optional) select vector database type, default to `pgvector`.
-- `POSTGRES_USE_UNIX_SOCKET`: (Optional) Set to "True" when connecting to the PostgreSQL database server with Unix Socket.
-- `POSTGRES_DB`: (Optional) The name of the PostgreSQL database, used when `VECTOR_DB_TYPE=pgvector`.
-- `POSTGRES_USER`: (Optional) The username for connecting to the PostgreSQL database.
-- `POSTGRES_PASSWORD`: (Optional) The password for connecting to the PostgreSQL database.
-- `DB_HOST`: (Optional) The hostname or IP address of the PostgreSQL database server.
-- `DB_PORT`: (Optional) The port number of the PostgreSQL database server.
-- `PGVECTOR_CREATE_EXTENSION`: (Optional) Set to "False" to skip the `CREATE EXTENSION IF NOT EXISTS vector` call on startup. Default is "True". Use this when the `vector` extension is already installed on a managed Postgres (e.g. RDS, Azure Database for PostgreSQL) and the application user is not a superuser.
-- `PG_POOL_PRE_PING`: (Optional) Set to "False" to disable SQLAlchemy's pre-ping check. Default is "True". When enabled, the connection pool issues a lightweight `SELECT 1` before handing out a pooled connection, so stale connections dropped by a remote server or middlebox idle timeout are transparently replaced instead of surfacing as query errors. Recommended for any deployment that connects to a remote PostgreSQL instance (managed Postgres, connections that traverse a load balancer, etc.).
-- `PG_POOL_RECYCLE`: (Optional) Maximum age in seconds of a pooled connection before it is recycled. Default is "-1" (disabled). Set to a positive value when the server enforces a hard idle or max-lifetime limit (e.g. "1800" for a 30-minute cap).
-- `POSTGRES_SCHEMA`: (Optional) Prepend this schema to the Postgres `search_path` so langchain's pgvector tables live in (and are read from) it. Unset by default (uses the user's default schema, typically `public`). Useful when sharing a database with other services — create the schema out-of-band first (`CREATE SCHEMA IF NOT EXISTS <name>; GRANT USAGE, CREATE ON SCHEMA <name> TO <app_user>;`); the RAG API will not create it for you and fails fast at startup if the schema is missing. `public` is always appended to the resulting search path so the `vector` data type stays resolvable when the extension was installed there (the common case). Multiple schemas may be supplied as a comma-separated list (e.g. `myapp,extensions`) when the `vector` extension lives in a non-`public` schema.
+- `VECTOR_DB_TYPE`: (Optional) select vector database type, default to `atlas-mongo`.
+- `ATLAS_MONGO_DB_URI`: MongoDB Atlas connection string used when `VECTOR_DB_TYPE=atlas-mongo`.
+- `ATLAS_SEARCH_INDEX`: (Optional) the name of the vector search index if using Atlas MongoDB, defaults to `vector_index`.
 - `RAG_HOST`: (Optional) The hostname or IP address where the API server will run. Defaults to "0.0.0.0"
 - `RAG_PORT`: (Optional) The port number where the API server will run. Defaults to port 8000.
 - `JWT_SECRET`: (Optional) The secret key used for verifying JWT tokens for requests.
@@ -98,11 +89,10 @@ The following environment variables are required to run the application:
 - `CHUNK_OVERLAP`: (Optional) The overlap between chunks during text processing. Default value is "100".
 - `EMBEDDING_BATCH_SIZE`: (Optional) Number of document chunks to process per batch. Set to `0` (default) to disable batching. Recommended value is `750` for `text-embedding-3-small`.
 - `EMBEDDING_MAX_QUEUE_SIZE`: (Optional) Maximum number of batches to buffer in memory during async processing. Default value is "3".
-- `RAG_DISTANCE_THRESHOLD`: (Optional, `VECTOR_DB_TYPE=pgvector` only) Drop results whose vector distance is greater than this value, after the top-`k` search. Unset by default (no filtering). Lower distance = more similar, so e.g. `0.5` keeps only hits with distance ≤ 0.5 and discards weaker matches. Useful for reducing downstream LLM token cost when the top-`k` call returns loosely-related chunks. Appropriate values depend on the embedding model and distance strategy — inspect your actual scores before choosing one. Ignored (with a startup warning) under `VECTOR_DB_TYPE=atlas-mongo`, because Atlas returns a similarity score (higher = better) with inverted semantics.
+- `RAG_DISTANCE_THRESHOLD`: Ignored under `VECTOR_DB_TYPE=atlas-mongo`, because Atlas returns a similarity score with different semantics.
 - `RAG_UPLOAD_DIR`: (Optional) The directory where uploaded files are stored. Default value is "./uploads/".
 - `PDF_EXTRACT_IMAGES`: (Optional) A boolean value indicating whether to extract images from PDF files. Default value is "False".
-- `DEBUG_RAG_API`: (Optional) Set to "True" to show more verbose logging output in the server console, and to enable postgresql database routes
-- `DEBUG_PGVECTOR_QUERIES`: (Optional) Set to "True" to enable detailed PostgreSQL query logging for pgvector operations. Useful for debugging performance issues with vector database queries.
+- `DEBUG_RAG_API`: (Optional) Set to "True" to show more verbose logging output in the server console.
 - `CONSOLE_JSON`: (Optional) Set to "True" to log as json for Cloud Logging aggregations
 - `EMBEDDINGS_PROVIDER`: (Optional) either "openai", "bedrock", "azure", "huggingface", "huggingfacetei", "google_genai", "vertexai", or "ollama", where "huggingface" uses sentence_transformers; defaults to "openai"
 - `EMBEDDINGS_MODEL`: (Optional) Set a valid embeddings model to use from the configured provider.
@@ -116,7 +106,7 @@ The following environment variables are required to run the application:
     - bedrock: "amazon.titan-embed-text-v1"
     - google_genai: "gemini-embedding-001"
 - `EMBEDDINGS_CHUNK_SIZE`: (Optional) The chunk size used by the OpenAI and Azure embeddings clients to limit the number of inputs per request. Default value is `200`.
-- `EMBEDDINGS_DIMENSIONS`: (Optional) Output vector size to request from the embedding model. Only honored by the `openai` and `azure` providers, and only supported by `text-embedding-3-*` models. Leave unset to use the model's native dimensionality (1536 for `text-embedding-3-small`, 3072 for `text-embedding-3-large`). Setting a smaller value (e.g. `512`, `1024`) trades some retrieval quality for lower storage cost and faster similarity search. Note: do not change this on an existing collection — all vectors in a `pgvector` column must share the same dimensionality.
+- `EMBEDDINGS_DIMENSIONS`: (Optional) Output vector size to request from the embedding model. Only honored by the `openai` and `azure` providers, and only supported by `text-embedding-3-*` models. Leave unset to use the model's native dimensionality (1536 for `text-embedding-3-small`, 3072 for `text-embedding-3-large`). Setting a smaller value (e.g. `512`, `1024`) trades some retrieval quality for lower storage cost and faster similarity search.
 - `RAG_AZURE_OPENAI_API_VERSION`: (Optional) Default is `2023-05-15`. The version of the Azure OpenAI API.
 - `RAG_AZURE_OPENAI_API_KEY`: (Optional) The API key for Azure OpenAI service.
     - Note: `AZURE_OPENAI_API_KEY` will work but `RAG_AZURE_OPENAI_API_KEY` will override it in order to not conflict with LibreChat setting.
@@ -176,7 +166,7 @@ When `EMBEDDING_BATCH_SIZE = 0` (default):
 
 ### Use Atlas MongoDB as Vector Database
 
-Instead of using the default pgvector, we could use [Atlas MongoDB](https://www.mongodb.com/products/platform/atlas-vector-search) as the vector database. To do so, set the following environment variables
+This project uses [Atlas MongoDB](https://www.mongodb.com/products/platform/atlas-vector-search) as the vector database. Set the following environment variables:
 
 ```env
 VECTOR_DB_TYPE=atlas-mongo
@@ -230,31 +220,6 @@ rag_api:
 
 This configuration will ensure that all HTTP/HTTPS requests from the RAG API container are routed through your specified proxy server.
 
-
-### Cloud Installation Settings:
-
-#### AWS:
-Make sure your RDS Postgres instance adheres to this requirement:
-
-`The pgvector extension version 0.5.0 is available on database instances in Amazon RDS running PostgreSQL 15.4-R2 and higher, 14.9-R2 and higher, 13.12-R2 and higher, and 12.16-R2 and higher in all applicable AWS Regions, including the AWS GovCloud (US) Regions.`
-
-In order to setup RDS Postgres with RAG API, you can follow these steps:
-
-* Create a RDS Instance/Cluster using the provided [AWS Documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateDBInstance.html).
-* Login to the RDS Cluster using the Endpoint connection string from the RDS Console or from your IaC Solution output.
-* The login is via the *Master User*.
-* Create a dedicated database for this API:
-``` create database hemanth_rag;```.
-* Create a dedicated user\role for that database:
-``` create role rag;```
-
-* Switch to the database you just created: ```\c hemanth_rag```
-* Enable the Vector extension: ```create extension vector;```
-* Use the documentation provided above to set up the connection string to the RDS Postgres Instance\Cluster.
-
-Notes:
-  * Even though you're logging with a Master user, it doesn't have all the super user privileges, that's why we cannot use the command: ```create role x with superuser;```
-  * If you do not enable the extension, rag_api service will throw an error that it cannot create the extension due to the note above.
 
 ### Dev notes:
 

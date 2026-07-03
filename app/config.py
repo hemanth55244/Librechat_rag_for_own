@@ -49,7 +49,7 @@ if not os.path.exists(RAG_UPLOAD_DIR):
     os.makedirs(RAG_UPLOAD_DIR, exist_ok=True)
 
 VECTOR_DB_TYPE = VectorDBType(
-    get_env_variable("VECTOR_DB_TYPE", VectorDBType.PGVECTOR.value)
+    get_env_variable("VECTOR_DB_TYPE", VectorDBType.ATLAS_MONGO.value)
 )
 POSTGRES_USE_UNIX_SOCKET = (
     get_env_variable("POSTGRES_USE_UNIX_SOCKET", "False").lower() == "true"
@@ -72,7 +72,7 @@ PG_POOL_RECYCLE = int(get_env_variable("PG_POOL_RECYCLE", "-1"))
 POSTGRES_SCHEMA = get_env_variable("POSTGRES_SCHEMA", None) or None
 COLLECTION_NAME = get_env_variable("COLLECTION_NAME", "hemanth_rag_collection")
 ATLAS_MONGO_DB_URI = get_env_variable(
-    "ATLAS_MONGO_DB_URI", "mongodb://127.0.0.1:27018/hemanth_rag"
+    "ATLAS_MONGO_DB_URI", "mongodb://127.0.0.1:27017/hemanth_rag"
 )
 ATLAS_SEARCH_INDEX = get_env_variable("ATLAS_SEARCH_INDEX", "vector_index")
 MONGO_VECTOR_COLLECTION = get_env_variable(

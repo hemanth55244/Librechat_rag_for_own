@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   hemanth_rag_api:
     build: .
@@ -9,6 +7,3 @@ services:
       - ./uploads:/app/uploads
     env_file:
       - .env
-
-volumes:
-  pgdata2:
