@@ -208,7 +208,7 @@ async def load_file_content(
             cleanup_temp_encoding_file(loader)
 
 
-def extract_text_from_documents(documents: List[Document], file_ext: str) -> str:
+def extract_text_from_documents(documents: List["Document"], file_ext: str) -> str:
     """Extract text content from loaded documents."""
     text_content = ""
     if documents:
@@ -450,7 +450,7 @@ async def query_embeddings_by_file_id(
 
 
 async def _process_documents_async_pipeline(
-    documents: List[Document],
+    documents: List["Document"],
     file_id: str,
     vector_store: "AsyncPgVector",
     executor: "ThreadPoolExecutor",
@@ -613,7 +613,7 @@ async def _process_documents_async_pipeline(
 
 
 async def _process_documents_batched_sync(
-    documents: List[Document],
+    documents: List["Document"],
     file_id: str,
     vector_store: Union["PgVector", "AtlasMongoVector"],
     executor: "ThreadPoolExecutor",
@@ -699,11 +699,11 @@ def generate_digest(page_content: str) -> str:
 
 
 def _prepare_documents_sync(
-    data: Iterable[Document],
+    data: Iterable["Document"],
     file_id: str,
     user_id: str,
     clean_content: bool,
-) -> List[Document]:
+) -> List["Document"]:
     """
     Synchronous document preparation - runs in executor to avoid blocking event loop.
     Handles text splitting, cleaning, and metadata preparation.
@@ -737,7 +737,7 @@ def _prepare_documents_sync(
 
 
 async def store_data_in_vector_db(
-    data: Iterable[Document],
+    data: Iterable["Document"],
     file_id: str,
     user_id: str = "",
     clean_content: bool = False,
